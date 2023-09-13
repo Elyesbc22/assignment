@@ -16,11 +16,11 @@ const MoreStories = ({ posts }: Props) => {
           <PostPreview
             key={post.slug}
             title={post.title}
-            coverImage={post.coverImage}
+            coverImage={post.picture}
             date={post.date}
             author={post.author}
             slug={post.slug}
-            excerpt={post.excerpt}
+            short_body={post.short_body}
           />
         ))}
       </div>

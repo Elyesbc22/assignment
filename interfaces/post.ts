@@ -4,13 +4,12 @@ type PostType = {
   slug: string
   title: string
   date: string
-  coverImage: string
-  author: Author
-  excerpt: string
-  ogImage: {
-    url: string
-  }
-  content: string
+  author: string
+  short_body: string
+  body: string
+  picture: string
+  meta_title: string
+  bid: number
 }
 
 export default PostType

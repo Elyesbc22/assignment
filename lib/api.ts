@@ -1,47 +1,107 @@
-import fs from 'fs'
-import { join } from 'path'
-import matter from 'gray-matter'
+const mariadb = require("mariadb")
 
-const postsDirectory = join(process.cwd(), '_posts')
-
-export function getPostSlugs() {
-  return fs.readdirSync(postsDirectory)
-}
-
-export function getPostBySlug(slug: string, fields: string[] = []) {
-  const realSlug = slug.replace(/\.md$/, '')
-  const fullPath = join(postsDirectory, `${realSlug}.md`)
-  const fileContents = fs.readFileSync(fullPath, 'utf8')
-  const { data, content } = matter(fileContents)
-
-  type Items = {
-    [key: string]: string
-  }
-
-  const items: Items = {}
-
-  // Ensure only the minimal needed data is exposed
-  fields.forEach((field) => {
-    if (field === 'slug') {
-      items[field] = realSlug
-    }
-    if (field === 'content') {
-      items[field] = content
-    }
-
-    if (typeof data[field] !== 'undefined') {
-      items[field] = data[field]
+export async function getPostBySlug(slug: string, fields: string[] = []) {
+  const conn = await mariadb.createConnection({
+    host: "localhost",
+    port: 3306,
+    user: "root",
+    password: "password",
+  });
+  await conn.execute("USE risklick_blog")
+  let selection: string = "";
+  fields.forEach((str, index) => {
+    if(index === fields.length - 1) {
+      selection = selection + str
+    }else{
+      selection = selection + str + ", "
     }
   })
-
-  return items
+  const convertedSlug = "'" + slug + "'";
+  let rows = await conn.query("SELECT " + selection + " FROM blog_posts WHERE slug = " + convertedSlug);
+  rows = JSON.parse(JSON.stringify(rows[0]))
+  console.log(rows)
+  return rows
 }
 
-export function getAllPosts(fields: string[] = []) {
-  const slugs = getPostSlugs()
-  const posts = slugs
-    .map((slug) => getPostBySlug(slug, fields))
-    // sort posts by date in descending order
-    .sort((post1, post2) => (post1.date > post2.date ? -1 : 1))
-  return posts
+export async function getComments(bid) {
+  const conn = await mariadb.createConnection({
+    host: "localhost",
+    port: 3306,
+    user: "root",
+    password: "password",
+  });
+  await conn.execute("USE risklick_blog")
+  let rows = await conn.query("SELECT * FROM blog_comments WHERE blog_id=" + bid)  
+  rows = JSON.parse(JSON.stringify(rows))
+  return rows
+}
+
+export async function getAllPosts(fields: string[] = []) {
+  const conn = await mariadb.createConnection({
+    host: "localhost",
+    port: 3306,
+    user: "root",
+    password: "password",
+  });
+    await conn.execute("USE risklick_blog")
+    let selection: string = "";
+    fields.forEach((str, index) => {
+      if(index === fields.length - 1) {
+        selection = selection + str
+      }else{
+        selection = selection + str + ", "
+      }
+    })
+	  let rows = await conn.query("SELECT " + selection + " FROM blog_posts");
+    rows = JSON.parse(JSON.stringify(rows))
+    return rows
+}
+
+async function getPostSlug() {
+  const conn = await mariadb.createConnection({
+    host: "localhost",
+    port: 3306,
+    user: "root",
+    password: "password",
+  });
+  await conn.execute("USE risklick_blog")
+	let rows = await conn.query("SELECT slug FROM blog_posts");
+  rows = JSON.parse(JSON.stringify(rows))
+  return rows
+}
+
+async function getPosts(){
+  let conn;
+  try {
+    conn = await mariadb.createConnection({
+      host: "localhost",
+      port: 3306,
+      user: "root",
+      password: "password",
+    });
+    await conn.execute("USE risklick_blog")
+    let rows = await conn.query("SELECT * FROM blog_posts");
+    rows = JSON.parse(JSON.stringify(rows))
+    return rows
+  } catch (err) {
+    throw err;
+  } finally {
+    if (conn) return conn.close();
+  }
+}
+
+export async function sendComment(comment: string, author: string, bid: number) {
+  const conn = await mariadb.createConnection({
+    host: "localhost",
+    port: 3306,
+    user: "root",
+    password: "password",
+  });
+  await conn.execute("USE risklick_blog")
+  await conn.execute(insertComment(comment, author, new Date(), bid));
+}
+
+
+function insertComment(comment: string, author: string, date: Date, bid: number) {
+  return `INSERT INTO blog_comments VALUES ('${date.toISOString().slice(0, 10)}', '${author}', '${comment}', '${bid}')`
 }

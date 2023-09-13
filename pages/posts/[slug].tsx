@@ -5,22 +5,42 @@ import PostBody from '../../components/post-body'
 import Header from '../../components/header'
 import PostHeader from '../../components/post-header'
 import Layout from '../../components/layout'
-import { getPostBySlug, getAllPosts } from '../../lib/api'
+import { getPostBySlug, getAllPosts, getComments, sendComment } from '../../lib/api'
 import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
-import markdownToHtml from '../../lib/markdownToHtml'
 import type PostType from '../../interfaces/post'
+import CommentSection from '../../components/comment'
+import React, { useState } from 'react'
+import CommentType from '../../interfaces/comment'
+import { useSession } from 'next-auth/react'
 
 type Props = {
   post: PostType
   morePosts: PostType[]
+  comments: CommentType[]
   preview?: boolean
 }
 
-export default function Post({ post, morePosts, preview }: Props) {
+export default function Post({ post, morePosts, preview, comments }: Props) {
   const router = useRouter()
-  const title = `${post.title} | Next.js Blog Example with ${CMS_NAME}`
+  const session = useSession()
+  const [text, setText] = useState("");
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    try {
+      await fetch("http://localhost:3000/api/comment", {
+        method: "POST",
+        body: JSON.stringify({ "comment": "text", "author": session.data.user.name, "blog_id": post.bid }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />
   }
@@ -34,16 +54,27 @@ export default function Post({ post, morePosts, preview }: Props) {
           <>
             <article className="mb-32">
               <Head>
-                <title>{title}</title>
-                <meta property="og:image" content={post.ogImage.url} />
+                <meta property="og:image" content={post.picture} />
               </Head>
               <PostHeader
                 title={post.title}
-                coverImage={post.coverImage}
+                coverImage={post.picture}
                 date={post.date}
                 author={post.author}
               />
-              <PostBody content={post.content} />
+              <PostBody content={post.body} />
+              <CommentSection text={text} setText={setText} onSubmit={onSubmit}/>
+              <br/>
+              {comments.map((comment) => {
+                return(
+                  <>
+                    <div>
+                      <div>{comment.author} {comment.date.slice(0, 10)}</div>
+                      <div>{comment.content}</div>
+                    </div>
+                  </>
+                )
+              })}
             </article>
           </>
         )}
@@ -52,37 +83,45 @@ export default function Post({ post, morePosts, preview }: Props) {
   )
 }
 
+
 type Params = {
   params: {
     slug: string
   }
 }
 
+
+
 export async function getStaticProps({ params }: Params) {
-  const post = getPostBySlug(params.slug, [
+  const post = await getPostBySlug(params.slug, [
     'title',
     'date',
     'slug',
     'author',
-    'content',
-    'ogImage',
-    'coverImage',
+    'body',
+    'picture',
+    'bid',
   ])
-  const content = await markdownToHtml(post.content || '')
-
+  const content = post.body
+  const comments = await getComments(post.bid)
+  let key = 0
+  const commentsWithKey = comments.map((comment) => {
+    key += 1
+    return {...comment, key: key}
+  })
   return {
     props: {
       post: {
         ...post,
         content,
       },
+      comments: comments,
     },
   }
 }
 
 export async function getStaticPaths() {
-  const posts = getAllPosts(['slug'])
-
+  const posts = await getAllPosts(['slug'])
   return {
     paths: posts.map((post) => {
       return {
