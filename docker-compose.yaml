@@ -15,7 +15,7 @@ services:
     image: adminer
     restart: always
     ports:
-      - 8080:8080
+      - 8000:8000
 
 # To use the CLI to access mariadb directly execute the following:
 # docker exec -it mariadb mysql --user=root --password=password
