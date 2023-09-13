@@ -13,4 +13,4 @@ run "sudo npm i && sudo npm dev run"
 ## Access the database
 
 run on your favorite browser localhost:8080 and type the credentials set in the docker-compose.yaml file and type
-mariaDB in server will then have access to all the databases created in docker
+mariaDB in server, you will then have access to all the databases created in docker
